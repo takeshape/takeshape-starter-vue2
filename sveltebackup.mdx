@@ -1,0 +1,243 @@
+---
+sidebar_label: Svelte
+---
+
+import Image from '@theme/IdealImage';
+
+
+# Use TakeShape with Svelte
+
+If you love Svelte's simplicity, you'll love how easy and fast it is to integrate a TakeShape project into your Svelte projects.
+
+Let's take a look at the process now!
+
+
+# Starting up a Svelte project
+
+If you're interested in jumping straight in, [Svelte has documentation on the easiest way to start a Svelte app](https://svelte.dev/blog/the-easiest-way-to-get-started).
+
+For simplicity's sake, we'll be using [Svelte's Hello World example project](https://svelte.dev/repl/hello-world?version=3.42.1). Download it and open up your terminal inside the project directory to begin. You'll need to install all the project's dependencies. Simply run:
+
+`npm install`
+
+And you're ready to go!
+
+
+# Getting your TakeShape project information
+
+To connect your TakeShape Project, you'll need its API Endpoint, and a valid API Key.
+
+To find the endpoint, navigate to your project's Home tab in the TakeShape web client. On the bottom right, you'll see a section called Useful Snippets. You can copy your API Key from there. Refer to the image below:
+
+<Image img={require('./images/general/useful-snippets.png')} alt="TakeShape Useful Snippets Web Interface"/>
+
+For information on generating an API Key, [check out our docs on the subject](/api/api-keys).
+
+:::info INFO
+Environment variables have no officially-supported implementation in Svelte yet, so be sure to set give your API Key read-only permissions when you create it.
+:::
+
+
+# Connecting TakeShape to your Svelte Project
+
+
+## Creating an Apollo client
+
+Apollo is the simplest way to add GraphQL queries to your Svelte components. In order to get an Apollo client running, let's first install all the necessary dependencies:
+
+`npm i @apollo/client svelte-apollo apollo-cache-inmemory apollo-link-http graphql-tag`
+
+With that done, open up the `App.svelte` file in the `src` folder of your project. It's time to configure our Apollo client.
+
+In the `<script>` tags of your component, import all the necessary dependencies as shown below:
+
+```html title="App.svelte"
+<script>
+	import { ApolloClient } from "@apollo/client";
+	import { setClient } from "svelte-apollo";
+	import { query } from "svelte-apollo";
+	import { InMemoryCache } from "apollo-cache-inmemory";
+	import { HttpLink } from "apollo-link-http";
+	import gql from 'graphql-tag'
+</script>
+```
+
+Now we're ready for our Apollo client configuration code. Start with creating an `HttpLink` object, which will take our Endpoint and API Key, so we can connect to our TakeShape project.
+
+```javascript title="App.svelte"	
+	const link = new HttpLink({
+		uri: 'https://api.takeshape.io/project/6cdbcc52-5697-475b-872e-fcb6fd0e00d0/v3/graphql',
+		fetch,
+		headers: {
+			Authorization : `Bearer 7b9171f34e104aeba972941bcfb7767d`
+		}
+	});
+```
+
+Almost done. Now we'll create an ApolloClient object, which will manage our connection to our TakeShape endpoint. All that's necessary after that is setting the client with the `setClient` method we imported.
+
+```javascript title="App.svelte"
+	const client = new ApolloClient({
+  		link: link,
+		cache: new InMemoryCache({
+			addTypename: true
+		})
+	});
+	setClient(client);
+```
+
+We're all set! Now to make a query, we just define it using the `gql` tag we've imported. For this example, we'll be pulling data about product collections from an Ecommerce backend. Here's an example query:
+
+```javascript title="App.svelte"
+	const collectionList = query(gql`
+		query  {
+			getCollectionList{
+				items{
+					_id
+					title
+					products{
+						name
+						price
+					}
+				}
+			}
+		}
+	`)
+```
+
+Your entire `<script>` should look like this:
+
+```javascript title="App.svelte"
+<script>
+	import { ApolloClient } from "@apollo/client";
+	import { setClient } from "svelte-apollo";
+	import { query } from "svelte-apollo";
+	import { InMemoryCache } from "apollo-cache-inmemory";
+	import { HttpLink } from "apollo-link-http";
+	import gql from 'graphql-tag'
+	
+	const link = new HttpLink({
+		uri: 'https://api.takeshape.io/project/6cdbcc52-5697-475b-872e-fcb6fd0e00d0/v3/graphql',
+		fetch,
+		headers: {
+			Authorization : `Bearer 7b9171f34e104aeba972941bcfb7767d`
+		}
+	});
+
+	const client = new ApolloClient({
+  		link: link,
+		cache: new InMemoryCache({
+			addTypename: true
+		})
+	});
+	setClient(client);
+
+	const collectionList = query(gql`
+		query  {
+			getCollectionList{
+				items{
+					_id
+					title
+					products{
+						name
+						price
+					}
+				}
+			}
+		}
+	`)
+</script>
+```
+
+
+## Adding data to your Svelte template
+
+Here's the part that makes Svelte so beautiful! Adding data to your template is super easy. You'll use an `#if` block to conditionally render content based on whether or not the data has been loaded.
+
+Within the `#if` block, we'll simply use `#each` blocks to render out HTML based on each piece of data we receive in the response from TakeShape's API Mesh. Check the code below:
+
+```javascript title="App.svelte"
+{#if $collectionList.loading}
+  Loading...
+{:else if $collectionList.error}
+  Error: {$collectionList.error.message}
+{:else}
+  {#each $collectionList.data.getCollectionList.items as collection}
+	<h2>{collection.title}</h2>
+	<ul>
+		{#each collection.products as product}
+			<li>{product.name} : {product.price}</li>
+		{/each}
+	</ul>
+  {/each}
+{/if}
+```
+
+In the above code, we're waiting for our query to resolve and return data to our `collectionList` variable. Once that's done, we're cycling through its `items` array and rendering an `<h2>` and `<ul>` for each item. In this case, `items` represents our product collections. The list will be every product in the collection we're iterating over, alongside its price.
+
+The final page should look like this:
+
+<Image img={require('./images/svelte/final_page.png')} alt="TakeShape Svelte Example"/>
+
+And the full `App.svelte` component should look like this:
+
+```html title="App.svelte"
+<script>
+	import { ApolloClient } from "@apollo/client";
+	import { setClient } from "svelte-apollo";
+	import { query } from "svelte-apollo";
+	import { InMemoryCache } from "apollo-cache-inmemory";
+	import { HttpLink } from "apollo-link-http";
+	import gql from 'graphql-tag'
+	
+	const link = new HttpLink({
+		uri: 'https://api.takeshape.io/project/6cdbcc52-5697-475b-872e-fcb6fd0e00d0/v3/graphql',
+		fetch,
+		headers: {
+			Authorization : `Bearer 7b9171f34e104aeba972941bcfb7767d`
+		}
+	});
+
+	const client = new ApolloClient({
+  		link: link,
+		cache: new InMemoryCache({
+			addTypename: true
+		})
+	});
+	setClient(client);
+
+	const collectionList = query(gql`
+		query  {
+			getCollectionList{
+				items{
+					_id
+					title
+					products{
+						name
+						price
+					}
+				}
+			}
+		}
+	`)
+</script>
+
+{#if $collectionList.loading}
+  Loading...
+{:else if $collectionList.error}
+  Error: {$collectionList.error.message}
+{:else}
+  {#each $collectionList.data.getCollectionList.items as collection}
+	<h2>{collection.title}</h2>
+	<ul>
+		{#each collection.products as product}
+			<li>{product.name} : {product.price}</li>
+		{/each}
+	</ul>
+  {/each}
+{/if}
+```
+
+And you're ready to get rolling with Svelte and TakeShape!
+
+Still confused? [Ask for help!](/get-started/help). We'd love to solve your problem.
