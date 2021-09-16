@@ -11,14 +11,14 @@ Vue.config.productionTip = false;
 
 const getHeaders = () => {
   const headers = {
-    Authorization : `Bearer YOUR-API-KEY-HERE`
+    Authorization : `Bearer ${process.env.VUE_APP_TAKESHAPE_API_KEY}`
   };  
   return headers;
 };
 
  // Create an http link:
 const link = new HttpLink({
-  uri: 'YOUR-ENDPOINT-HERE',
+  uri: process.env.VUE_APP_TAKESHAPE_ENDPOINT,
   fetch,
   headers: getHeaders()
 });
